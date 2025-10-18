@@ -1,31 +1,23 @@
 from flask import Flask, request, jsonify, render_template_string
-import sqlite3
+import firebase_admin
+from firebase_admin import credentials, firestore
 
 app = Flask(__name__)
-DB_NAME = "data.db"
 
 # ----------------------
-# Initialize database
+# Initialize Firebase
 # ----------------------
-def init_db():
-    with sqlite3.connect(DB_NAME) as conn:
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT,
-                email TEXT
-            )
-        ''')
-        conn.commit()
-
-init_db()
+cred = credentials.Certificate("path/to/serviceAccountKey.json")  # upload this to Render too
+firebase_admin.initialize_app(cred)
+db = firestore.client()
+users_collection = db.collection("users")
 
 # ----------------------
 # API Routes
 # ----------------------
 @app.route('/')
 def home():
-    return jsonify({"message": "Database server is running successfully!"})
+    return jsonify({"message": "Firebase server is running successfully!"})
 
 @app.route('/add_user', methods=['POST'])
 def add_user():
@@ -35,17 +27,19 @@ def add_user():
     if not name or not email:
         return jsonify({"error": "Both 'name' and 'email' are required"}), 400
 
-    with sqlite3.connect(DB_NAME) as conn:
-        conn.execute('INSERT INTO users (name, email) VALUES (?, ?)', (name, email))
-        conn.commit()
+    doc_ref = users_collection.document()  # auto-generated ID
+    doc_ref.set({"name": name, "email": email})
 
     return jsonify({"message": "User added successfully!", "name": name, "email": email})
 
 @app.route('/get_users', methods=['GET'])
 def get_users():
-    with sqlite3.connect(DB_NAME) as conn:
-        cursor = conn.execute('SELECT * FROM users')
-        users = [{"id": row[0], "name": row[1], "email": row[2]} for row in cursor.fetchall()]
+    users = []
+    docs = users_collection.stream()
+    for doc in docs:
+        u = doc.to_dict()
+        u["id"] = doc.id
+        users.append(u)
     return jsonify(users)
 
 # ----------------------
@@ -53,18 +47,22 @@ def get_users():
 # ----------------------
 @app.route('/dashboard')
 def dashboard():
-    with sqlite3.connect(DB_NAME) as conn:
-        cursor = conn.execute("SELECT * FROM users")
-        users = cursor.fetchall()
+    docs = users_collection.stream()
+    users = []
+    for doc in docs:
+        d = doc.to_dict()
+        d["id"] = doc.id
+        users.append(d)
+
     html = """
-    <h2>Users Dashboard</h2>
+    <h2>Users Dashboard (Firebase)</h2>
     <table border="1" cellpadding="5">
         <tr><th>ID</th><th>Name</th><th>Email</th></tr>
         {% for u in users %}
         <tr>
-            <td>{{u[0]}}</td>
-            <td>{{u[1]}}</td>
-            <td>{{u[2]}}</td>
+            <td>{{u['id']}}</td>
+            <td>{{u['name']}}</td>
+            <td>{{u['email']}}</td>
         </tr>
         {% endfor %}
     </table>
