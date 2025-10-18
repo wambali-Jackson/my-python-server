@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template_string
 import sqlite3
 
 app = Flask(__name__)
@@ -21,7 +21,7 @@ def init_db():
 init_db()
 
 # ----------------------
-# Routes
+# API Routes
 # ----------------------
 @app.route('/')
 def home():
@@ -47,6 +47,29 @@ def get_users():
         cursor = conn.execute('SELECT * FROM users')
         users = [{"id": row[0], "name": row[1], "email": row[2]} for row in cursor.fetchall()]
     return jsonify(users)
+
+# ----------------------
+# Dashboard route
+# ----------------------
+@app.route('/dashboard')
+def dashboard():
+    with sqlite3.connect(DB_NAME) as conn:
+        cursor = conn.execute("SELECT * FROM users")
+        users = cursor.fetchall()
+    html = """
+    <h2>Users Dashboard</h2>
+    <table border="1" cellpadding="5">
+        <tr><th>ID</th><th>Name</th><th>Email</th></tr>
+        {% for u in users %}
+        <tr>
+            <td>{{u[0]}}</td>
+            <td>{{u[1]}}</td>
+            <td>{{u[2]}}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    """
+    return render_template_string(html, users=users)
 
 # ----------------------
 # Run server
