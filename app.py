@@ -1,57 +1,55 @@
+from flask import Flask, request, jsonify
 import sqlite3
-from flask import Flask, jsonify, request
 
 app = Flask(__name__)
-DB_FILE = "data.db"
+DB_NAME = "data.db"
 
-# --- Initialize database ---
+# ----------------------
+# Initialize database
+# ----------------------
 def init_db():
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS readings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            value REAL
-        )
-    ''')
-    conn.commit()
-    conn.close()
+    with sqlite3.connect(DB_NAME) as conn:
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                email TEXT
+            )
+        ''')
+        conn.commit()
 
 init_db()
 
-
-# --- Routes ---
+# ----------------------
+# Routes
+# ----------------------
 @app.route('/')
 def home():
     return jsonify({"message": "Database server is running successfully!"})
 
-
-@app.route('/add', methods=['POST'])
-def add_record():
+@app.route('/add_user', methods=['POST'])
+def add_user():
     data = request.get_json()
     name = data.get('name')
-    value = data.get('value')
+    email = data.get('email')
+    if not name or not email:
+        return jsonify({"error": "Both 'name' and 'email' are required"}), 400
 
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO readings (name, value) VALUES (?, ?)", (name, value))
-    conn.commit()
-    conn.close()
+    with sqlite3.connect(DB_NAME) as conn:
+        conn.execute('INSERT INTO users (name, email) VALUES (?, ?)', (name, email))
+        conn.commit()
 
-    return jsonify({"status": "success", "name": name, "value": value})
+    return jsonify({"message": "User added successfully!", "name": name, "email": email})
 
+@app.route('/get_users', methods=['GET'])
+def get_users():
+    with sqlite3.connect(DB_NAME) as conn:
+        cursor = conn.execute('SELECT * FROM users')
+        users = [{"id": row[0], "name": row[1], "email": row[2]} for row in cursor.fetchall()]
+    return jsonify(users)
 
-@app.route('/all')
-def get_all():
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM readings")
-    rows = cursor.fetchall()
-    conn.close()
-
-    return jsonify([{"id": r[0], "name": r[1], "value": r[2]} for r in rows])
-
-
+# ----------------------
+# Run server
+# ----------------------
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
