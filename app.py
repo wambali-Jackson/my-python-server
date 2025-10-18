@@ -7,7 +7,7 @@ app = Flask(__name__)
 # ----------------------
 # Initialize Firebase
 # ----------------------
-cred = credentials.Certificate("https://raw.githubusercontent.com/wambali-Jackson/my-python-server/refs/heads/main/myserverdb-26697-firebase-adminsdk-fbsvc-ab7a87079a.json")  # upload this to Render too
+cred = credentials.Certificate("https://github.com/wambali-Jackson/my-python-server/blob/main/myserverdb-26697-firebase-adminsdk-fbsvc-ab7a87079a.json")  # upload this to Render too
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 users_collection = db.collection("users")
@@ -74,4 +74,5 @@ def dashboard():
 # ----------------------
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
 
